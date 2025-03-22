@@ -4,14 +4,26 @@ import { swaggerUI } from '@hono/swagger-ui'
 import Bun from 'bun'
 
 const db = new Database('db.sqlite')
+
 db.run(`
+
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL, 
         email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL
-    )
+    );
+
+    CREATE TABLE IF NOT EXISTS todos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        time INTEGER NOT NULL,
+        day INTEGER NOT NULL
+        );
+
 `)
+
 
 const app = new Hono()
 
@@ -21,7 +33,7 @@ app.get('/doc', async (c) => {
     return c.text(await Bun.file('ui.yaml').text())
 })
 
-app.get('/super',async (c) => {
+app.get('/super', async (c) => {
     const stmt = db.prepare('SELECT * FROM users')
     const users = stmt.all()
     return c.json(users)
@@ -86,6 +98,54 @@ app.post('/signin', async (c) => {
     }
 })
 
+app.get('/todos', async (c) => {
+    try {
+        const stmt = db.prepare('SELECT * FROM todos')
+        const todos = stmt.all()
+        return c.json(todos)
+    } catch (error) {
+        console.error('Get todos error:', error)
+        return c.json({ message: 'Internal server error' }, 500)
+    }
+})
+
+app.post('/todos', async (c) => {
+    try {
+        const data = await c.req.json()
+        const { name, type, time, day } = data
+
+        if (!name || !type || !time || !day) {
+            return c.json({ message: 'Missing required fields' }, 400)
+        }
+
+        const stmt = db.prepare('INSERT INTO todos (name, type, time, day) VALUES (?, ?, ?, ?)')
+        stmt.run(name, type, time, day)
+        return c.json({ message: 'Todo created' }, 200)
+    } catch (error) {
+        console.error('Post todos error:', error)
+        return c.json({ message: 'Internal server error' }, 500)
+    }
+})
+
+app.delete('/todos', async (c) => {
+    try {
+        const data = await c.req.json()
+        const { id } = data
+
+        if (!id) {
+            return c.json({ message: 'Missing required fields' }, 400)
+        }
+
+        const stmt = db.prepare('DELETE FROM todos WHERE id = ?')
+        stmt.run(id)
+        return c.json({ message: 'Todo deleted' }, 200)
+    }
+    catch (error) {
+        console.error('Delete todos error:', error)
+        return c.json({ message: 'Internal server error' }, 500)
+    }
+})
+
 app.delete('/user', async (c) => {
     try {
         const data = await c.req.json()
@@ -121,7 +181,7 @@ app.delete('/user', async (c) => {
 })
 
 Bun.serve({
-    fetch: app.fetch,
+     fetch: app.fetch,
     port: process.env.PORT || 3000,
 })
 
