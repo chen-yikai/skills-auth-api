@@ -3,9 +3,6 @@ info:
   title: Skills Auth API
   description: API for user authentication and todo management.
   version: 1.0.0
-servers:
-  - url: http://localhost:3000
-    description: Local development server
 paths:
   /signup:
     post:
